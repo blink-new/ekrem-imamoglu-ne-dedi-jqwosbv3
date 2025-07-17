@@ -49,10 +49,14 @@ serve(async (req) => {
       try {
         console.log(`Fetching ${platform} RSS feed: ${url}`);
         const posts = await fetchRSSFeedWithRetry(url, platform as keyof typeof RSS_FEEDS);
-        allPosts.push(...posts);
-        console.log(`Successfully fetched ${posts.length} posts from ${platform}`);
+        if (posts.length > 0) {
+          allPosts.push(...posts);
+          console.log(`✅ Successfully fetched ${posts.length} posts from ${platform}`);
+        } else {
+          console.warn(`⚠️ No posts found in ${platform} RSS feed`);
+        }
       } catch (error) {
-        console.error(`Failed to fetch ${platform} RSS feed:`, error);
+        console.warn(`❌ Failed to fetch ${platform} RSS feed: ${error.message}`);
         // Continue with other feeds even if one fails
       }
     }
@@ -111,24 +115,32 @@ async function fetchRSSFeedWithRetry(url: string, platform: string, maxRetries =
 }
 
 async function fetchRSSFeed(url: string, platform: string): Promise<RSSPost[]> {
-  // Try direct fetch first
   let response: Response;
   
   try {
+    // Add timeout and better headers
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; RSS Reader)',
-        'Accept': 'application/rss+xml, application/xml, text/xml',
+        'User-Agent': 'Mozilla/5.0 (compatible; RSS Reader; +https://blink.new)',
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+        'Accept-Language': 'tr-TR,tr;q=0.9,en;q=0.8',
       },
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
   } catch (error) {
-    // If direct fetch fails, try with a different approach
-    console.log(`Direct fetch failed for ${platform}, trying alternative method`);
-    throw error;
+    if (error.name === 'AbortError') {
+      throw new Error(`Timeout fetching ${platform} RSS feed`);
+    }
+    throw new Error(`Network error fetching ${platform}: ${error.message}`);
   }
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status} for ${platform}`);
+    throw new Error(`HTTP ${response.status} error for ${platform}`);
   }
 
   const xmlText = await response.text();
@@ -137,9 +149,14 @@ async function fetchRSSFeed(url: string, platform: string): Promise<RSSPost[]> {
     throw new Error(`Empty response from ${platform}`);
   }
 
-  // Parse XML
-  const parser = new DOMParser();
-  const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+  // Parse XML using DOMParser (available in Deno)
+  let xmlDoc: Document;
+  try {
+    const parser = new DOMParser();
+    xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+  } catch (error) {
+    throw new Error(`Failed to parse XML for ${platform}: ${error.message}`);
+  }
 
   // Check for parsing errors
   const parseError = xmlDoc.querySelector('parsererror');
@@ -163,7 +180,7 @@ async function fetchRSSFeed(url: string, platform: string): Promise<RSSPost[]> {
     }
   });
 
-  return posts.slice(0, 20); // Limit to 20 most recent posts per platform
+  return posts.slice(0, 15); // Limit to 15 most recent posts per platform
 }
 
 function parseRSSItem(item: Element, platform: string, index: number): RSSPost | null {

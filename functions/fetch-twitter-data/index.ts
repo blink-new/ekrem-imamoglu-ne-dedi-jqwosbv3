@@ -65,7 +65,7 @@ serve(async (req) => {
         );
 
         if (!userResponse.ok) {
-          console.error(`Failed to fetch user ${username}:`, userResponse.status);
+          console.warn(`❌ Failed to fetch user ${username}: HTTP ${userResponse.status}`);
           continue;
         }
 
@@ -95,7 +95,7 @@ serve(async (req) => {
         );
 
         if (!tweetsResponse.ok) {
-          console.error(`Failed to fetch tweets for ${username}:`, tweetsResponse.status);
+          console.warn(`❌ Failed to fetch tweets for ${username}: HTTP ${tweetsResponse.status}`);
           continue;
         }
 

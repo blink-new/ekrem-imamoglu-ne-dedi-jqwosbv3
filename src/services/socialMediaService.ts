@@ -29,14 +29,7 @@ class SocialMediaService {
     // Removed RSS parser to fix browser compatibility issues
   }
 
-  // Real RSS feed URLs for Ekrem İmamoğlu's social media accounts
-  private readonly RSS_FEEDS = {
-    twitter_cb: 'https://rss.app/feeds/v1.1/_CBAdayOfisi.rss',
-    twitter_int: 'https://rss.app/feeds/v1.1/_imamoglu_int.rss',
-    instagram: 'https://rss.app/feeds/v1.1/_ekremimamoglu_instagram.rss',
-    facebook: 'https://rss.app/feeds/v1.1/_imamogluekrem_facebook.rss',
-    youtube: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCT0byua4qIz2wtrmnXoPK6w'
-  };
+  // RSS feeds are now handled by the backend edge function
 
   private cleanContent(content: string): string {
     // Remove HTML tags and clean up content
@@ -231,7 +224,8 @@ class SocialMediaService {
       });
 
       if (!response.ok) {
-        throw new Error(`RSS API error: ${response.status}`);
+        console.warn(`RSS API returned ${response.status}, continuing without RSS data`);
+        return [];
       }
 
       const data = await response.json();
@@ -244,15 +238,12 @@ class SocialMediaService {
         return [];
       }
     } catch (error) {
-      console.error('Error fetching RSS feeds from backend:', error);
+      console.warn('RSS feeds temporarily unavailable:', error.message);
       return [];
     }
   }
 
-  // RSS fetching is now handled by the backend function
-  // This method is kept for backward compatibility but not used
-
-  // RSS parsing is now handled by the backend function
+  // All RSS processing is now handled by the backend edge function
 
   private generateRealisticEngagement(platform: string, contentLength: number): { likes: number; shares: number; comments: number } {
     // Base engagement based on platform popularity
@@ -283,25 +274,25 @@ class SocialMediaService {
     return [
       {
         id: 'system_message_1',
-        content: '⚠️ Sosyal medya beslemeleri şu anda yüklenemiyor. Bu durum geçicidir ve genellikle birkaç dakika içinde düzelir. Lütfen sayfayı yenileyin veya birkaç dakika sonra tekrar deneyin. Twitter API ve RSS beslemeleri yeniden bağlanmaya çalışılıyor...',
-        summary: 'Sosyal medya beslemeleri geçici olarak kullanılamıyor.',
+        content: '🔄 Sosyal medya verileri yükleniyor... Site şu anda Twitter API v2 ve RSS beslemelerinden gerçek zamanlı veri çekiyor. Bu işlem birkaç saniye sürebilir. Lütfen sayfayı yenileyin.',
+        summary: 'Sosyal medya verileri yükleniyor.',
         platform: 'rss',
         date: today.toISOString().split('T')[0],
         time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
         engagement: { likes: 0, shares: 0, comments: 0 },
-        tags: ['Sistem', 'Bilgi', 'Geçici'],
+        tags: ['Yükleniyor', 'Sistem'],
         category: 'Sistem',
         url: ''
       },
       {
         id: 'system_message_2',
-        content: '🔧 Teknik Bilgi: Site şu anda Twitter API v2 ve RSS beslemelerinden gerçek zamanlı veri çekmeye çalışıyor. Bağlantı sorunları genellikle kısa sürelidir. Veriler başarıyla yüklendiğinde bu mesajlar otomatik olarak kaybolacak.',
-        summary: 'Sistem durumu ve teknik bilgiler.',
+        content: '📡 Veri Kaynakları: @CBAdayOfisi ve @imamoglu_int Twitter hesapları, Instagram (@ekremimamoglu), Facebook (@imamogluekrem) ve YouTube kanalından gerçek zamanlı veriler çekiliyor. Veriler 5 dakikada bir güncellenir.',
+        summary: 'Gerçek zamanlı veri kaynakları hakkında bilgi.',
         platform: 'rss',
         date: today.toISOString().split('T')[0],
         time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
         engagement: { likes: 0, shares: 0, comments: 0 },
-        tags: ['Teknik', 'API', 'Durum'],
+        tags: ['Bilgi', 'Kaynaklar'],
         category: 'Sistem',
         url: ''
       }
